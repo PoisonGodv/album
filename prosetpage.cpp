@@ -24,6 +24,12 @@ ProSetPage::~ProSetPage()
     delete ui;
 }
 
+void ProSetPage::GetProSettings(QString &name, QString &path)
+{
+    name = ui->lineEdit->text();
+    path = ui->lineEdit_2->text();
+}
+
 bool ProSetPage::isComplete() const
 {
     if(ui->lineEdit->text() == "" || ui->lineEdit_2->text() == ""){

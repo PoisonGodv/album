@@ -14,6 +14,7 @@ class ProSetPage : public QWizardPage
 public:
     explicit ProSetPage(QWidget *parent = nullptr);
     ~ProSetPage();
+    void  GetProSettings(QString& name, QString& path);
 protected:
     virtual bool isComplete() const;
 private slots:
