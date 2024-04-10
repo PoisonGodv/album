@@ -7,6 +7,7 @@
 #include<QMenu>
 #include<QFileDialog>
 #include<removeprodialog.h>
+#include"slideshowdlg.h"
 ProTreeWidget::ProTreeWidget(QWidget *parent):QTreeWidget(parent),_active_item(nullptr),_right_btn_item(nullptr) , _dialog_progress(nullptr),_selected_item(nullptr),_thread_create_pro(nullptr),_thread_open_pro(nullptr),_open_progressdlg(nullptr)
 {
     this->header()->hide();
@@ -18,6 +19,10 @@ ProTreeWidget::ProTreeWidget(QWidget *parent):QTreeWidget(parent),_active_item(n
     connect(_action_import, &QAction::triggered , this, &ProTreeWidget::SlotImport);
     connect(_action_setstart , &QAction::triggered , this , &ProTreeWidget::SlotSetActive);
     connect(_action_closepro, &QAction::triggered , this , &ProTreeWidget::SlotClosePro);
+
+    connect(this, &ProTreeWidget::itemDoubleClicked, this, &ProTreeWidget::SlotDoubleClickItem);
+
+    connect(_action_slideshow, &QAction::triggered , this , &ProTreeWidget::SlotSlideShow);
 
 }
 
@@ -123,6 +128,22 @@ void ProTreeWidget::SlotCancelProgress()
     _dialog_progress = nullptr;
 }
 
+void ProTreeWidget::SlotDoubleClickItem(QTreeWidgetItem *doubleItem, int col)
+{
+    if(QGuiApplication::mouseButtons() == Qt::LeftButton){
+        auto * tree_doubleItem = dynamic_cast<ProTreeItem*>(doubleItem);
+
+        if(!tree_doubleItem){
+            return;
+        }
+        int itemtype = tree_doubleItem->type();
+        if(itemtype == TreeItemPic){
+            emit SigUpdateSelected(tree_doubleItem -> GetPath());
+            _selected_item = doubleItem;
+        }
+    }
+}
+
 void ProTreeWidget::SlotUpOpenProgress(int count)
 {
     if(!_open_progressdlg){
@@ -177,7 +198,7 @@ void ProTreeWidget::SlotClosePro()
     bool b_remove = remove_pro_dialog.IsRemoved();
     auto index_right_btn = this->indexOfTopLevelItem(_right_btn_item);
     auto * protreeitem = dynamic_cast<ProTreeItem*>(_right_btn_item);
-    // auto * selecteditem = dynamic_cast<ProTreeItem*>(_selected_item);
+    auto * selecteditem = dynamic_cast<ProTreeItem*>(_selected_item);
     auto delete_path = protreeitem->GetPath();
     _set_path.remove(delete_path);
     if(b_remove){
@@ -187,9 +208,40 @@ void ProTreeWidget::SlotClosePro()
     if(protreeitem == _active_item){
         _active_item = nullptr;
     }
+    if(selecteditem && protreeitem == selecteditem->GetRoot()){
+        selecteditem = nullptr;
+        _selected_item = nullptr;
+        emit SigClearSelected();
+    }
+
     delete this->takeTopLevelItem(index_right_btn);
     _right_btn_item = nullptr;
 
+}
+
+void ProTreeWidget::SlotSlideShow()
+{
+    if(!_right_btn_item){
+        return;
+    }
+
+    auto * right_pro_item = dynamic_cast<ProTreeItem*>(_right_btn_item);
+
+    auto * last_child_item = right_pro_item->GetLastPicChild();
+
+    if(!last_child_item){
+        return;
+    }
+    auto * first_child_item = right_pro_item->GetFirstPicChild();
+    if(!first_child_item){
+        return;
+    }
+    qDebug()<<"first_is"<<first_child_item->GetPath();
+    qDebug()<<"end"<<last_child_item->GetPath();
+
+    _slide_show_dlg = std::make_shared<SlideShowDlg>(this, first_child_item , last_child_item);
+    _slide_show_dlg->setModal(true);
+    _slide_show_dlg->showMaximized();
 }
 
 void ProTreeWidget::SlotOpenPro(const QString &path)
@@ -215,4 +267,33 @@ void ProTreeWidget::SlotOpenPro(const QString &path)
     _open_progressdlg->setRange(0 , PROGRESS_WIDTH);
     _open_progressdlg->exec();
 
+}
+
+void ProTreeWidget::SlotNextShow()
+{
+    if(!_selected_item){
+        return;
+    }
+
+    auto *curItem = dynamic_cast<ProTreeItem*>(_selected_item)->GetNextItem();
+    if(!curItem){
+        return;
+    }
+    emit SigUpdatePic(curItem->GetPath());
+    _selected_item = curItem;
+    this->setCurrentItem(curItem);
+}
+
+void ProTreeWidget::SlotPreShow()
+{
+    if(!_selected_item){
+        return;
+    }
+    auto *curItem = dynamic_cast<ProTreeItem*>(_selected_item)->GetPreItem();
+    if(!curItem){
+        return;
+    }
+    emit SigUpdatePic(curItem->GetPath());
+    _selected_item = curItem;
+    this->setCurrentItem(curItem);
 }
